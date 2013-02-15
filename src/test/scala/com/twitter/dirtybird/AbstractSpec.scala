@@ -5,6 +5,8 @@ import org.specs.mock.Mockito
 import org.mockito.Matchers
 
 abstract class AbstractSpec extends SpecificationWithJUnit with Mockito {
+  noDetailedDiffs()
+
   import Matchers.{eq => _eq}
   def argEq[T](value: T) = _eq(value)
 }
