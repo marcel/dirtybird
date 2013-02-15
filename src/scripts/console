@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+$: << File.dirname(__FILE__) + "/../../target/gen-rb"
+
+require "rubygems"
+
+require "thrift"
+require "thrift_client"
+require "finagle-thrift"
+require "irb"
+require 'fileutils'
+
+def generate_thrift(path_to_thrift, output_dir = nil)
+  output_dir = File.join(File.dirname(__FILE__), "..", "..", "target") unless output_dir
+  FileUtils.mkdir_p(output_dir)
+  `thrift --gen rb -o #{output_dir} #{path_to_thrift}`
+  $:.push(File.join(output_dir, "gen-rb"))
+  Dir[File.join(output_dir, "gen-rb", "*.rb")].each do |file|
+    next unless file =~ /_service\.rb$/
+    require file
+  end
+rescue => e
+  $stderr.puts("failed to generate ruby thrift")
+  $stderr.puts(e.inspect)
+  exit(1)
+end
+
+class DirtybirdClient < ThriftClient
+  DEFAULTS = { :transport_wrapper => Thrift::FramedTransport }
+  def initialize(servers = nil, options = {})
+    if servers.nil? or servers.empty?
+      STDERR.puts "No servers specified, using 127.0.0.1:9999"
+      servers = ['127.0.0.1:9999']
+    else
+      servers = Array(servers)
+    end
+
+    super(Dirtybird::DirtybirdService::Client, servers, DEFAULTS.merge(options))
+  end
+end
+
+generate_thrift(File.join(File.dirname(__FILE__), "..", "main", "thrift", "dirtybird.thrift"))
+
+puts "Hint: the client is in the variable `$client`"
+$client = DirtybirdClient.new ARGV.shift
+
+IRB.start
